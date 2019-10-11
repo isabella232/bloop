@@ -277,10 +277,6 @@ object Compiler {
     def getCompilationOptions(inputs: CompileInputs): CompileOptions = {
       val sources = inputs.sources // Sources are all files
       val classpath = inputs.classpath.map(_.toFile)
-      val annotationProcessorOptions =
-        if (inputs.processorpath.isEmpty) List.empty[String]
-        else List("-processorpath", inputs.processorpath.mkString(":"))
-      val javacOptions = inputs.javacOptions ++ annotationProcessorOptions
       val optionsWithoutFatalWarnings = inputs.scalacOptions.flatMap { option =>
         if (option != "-Xfatal-warnings") List(option)
         else {
@@ -288,6 +284,10 @@ object Compiler {
           Nil
         }
       }
+      val annotationProcessorOptions =
+        if (inputs.processorpath.isEmpty) List.empty[String]
+        else List("-processorpath", inputs.processorpath.mkString(":"))
+      val javacOptions = inputs.javacOptions ++ annotationProcessorOptions
 
       // Enable fatal warnings in the reporter if they are enabled in the build
       if (isFatalWarningsEnabled)

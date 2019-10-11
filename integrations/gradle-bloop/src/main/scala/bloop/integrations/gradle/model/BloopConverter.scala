@@ -224,13 +224,14 @@ final class BloopConverter(parameters: BloopParameters) {
       val modules = (nonProjectDependencies.map(artifactToConfigModule(_, project)) ++
         additionalArtifacts.map(artifactToConfigModule(_, project))).distinct
 
-      val annotationProcessorPaths = {
-        val confName = getConfigurationName(sourceSet, "annotationProcessor")
-        Option(project.getConfiguration(confName)) match {
-          case None => List.empty
-          case Some(conf) => conf.getResolvedConfiguration.getFiles.asScala.toList.map(_.toPath)
+      val annotationProcessorPaths =
+        Option(project.getConfiguration("annotationProcessor")) match {
+          case None => None
+          case Some(conf) => conf.getResolvedConfiguration.getFiles.asScala.toList.map(_.toPath) match {
+            case Nil => None
+            case paths => Some(paths)
+          }
         }
-      }
 
       for {
         scalaConfig <- getScalaConfig(project, sourceSet, compileArtifacts)
