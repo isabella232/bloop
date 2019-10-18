@@ -780,7 +780,10 @@ object DeduplicationSpec extends bloop.bsp.BspBaseSuite {
             |  def sleep(): Unit = macro sleepImpl
             |  def sleepImpl(c: Context)(): c.Expr[Unit] = {
             |    import c.universe._
-            |    Thread.sleep(1000)
+            |    Thread.sleep(500)
+            |    Thread.sleep(500)
+            |    Thread.sleep(500)
+            |    Thread.sleep(500)
             |    reify { () }
             |  }
             |}""".stripMargin
@@ -855,7 +858,8 @@ object DeduplicationSpec extends bloop.bsp.BspBaseSuite {
         bspLogger,
         compileStartPromises = Some(compileStartPromises)
       ) { bspState =>
-        val firstCompilation = bspState.compileHandle(`B`)
+        val firstCompilation =
+          bspState.compileHandle(`B`, userScheduler = Some(ExecutionContext.ioScheduler))
         val secondCompilation =
           waitUntilStartAndCompile(compiledState, `B`, startedFirstCompilation, cliLogger)
 
@@ -865,7 +869,12 @@ object DeduplicationSpec extends bloop.bsp.BspBaseSuite {
           .runAsync(ExecutionContext.ioScheduler)
 
         val (firstCompiledState, secondCompiledState) =
-          TestUtil.blockOnTask(mapBoth(firstCompilation, secondCompilation), 7)
+          TestUtil.blockOnTask(
+            mapBoth(firstCompilation, secondCompilation),
+            10,
+            loggers = List(cliLogger, bspLogger),
+            userScheduler = Some(ExecutionContext.ioScheduler)
+          )
 
         assert(firstCompiledState.status == ExitStatus.CompilationError)
         assertCancelledCompilation(firstCompiledState.toTestState, List(`B`))
@@ -973,7 +982,8 @@ object DeduplicationSpec extends bloop.bsp.BspBaseSuite {
           bspLogger,
           compileStartPromises = Some(compileStartPromises)
         ) { bspState =>
-          val firstCompilation = bspState.compileHandle(`B`)
+          val firstCompilation =
+            bspState.compileHandle(`B`, userScheduler = Some(ExecutionContext.ioScheduler))
           val secondCompilation =
             waitUntilStartAndCompile(compiledState, `B`, startedFirstCompilation, cliLogger)
 

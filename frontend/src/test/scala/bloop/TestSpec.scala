@@ -32,7 +32,8 @@ abstract class BaseTestSpec(val projectName: String, buildName: String)
   testProject("runs all available suites", testOnlyOnJava8) { (build, logger) =>
     val project = build.projectFor(projectName)
     val testState = build.state.test(project)
-    assert(logger.errors.size == 0)
+    try assert(logger.errors.size == 0)
+    catch { case _: AssertionError => logger.dump() }
     assertNoDiff(
       logger.renderTimeInsensitiveTestInfos,
       expectedFullTestsOutput
@@ -255,7 +256,7 @@ object JvmTestSpec extends BaseTestSpec("test-project-test", "cross-test-build-s
     )
   }
 
-  testProject("test options don't work when none framework is singled out", runOnlyOnJava8 = true) {
+  testProject("test options don't work when no framework is singled out", runOnlyOnJava8 = true) {
     (build, logger) =>
       val project = build.projectFor(projectName)
       val testState = build.state.test(project, Nil, List("*myTest*"))
@@ -335,9 +336,15 @@ object JvmTestSpec extends BaseTestSpec("test-project-test", "cross-test-build-s
           |  @Test
           |  def myTest: Unit = {
           |    Thread.sleep(1000)
+          |    assertEquals(4, 2 + 2)
           |    Thread.sleep(1000)
+          |    assertEquals(4, 2 + 2)
           |    Thread.sleep(1000)
+          |    assertEquals(4, 2 + 2)
           |    Thread.sleep(1000)
+          |    assertEquals(4, 2 + 2)
+          |    Thread.sleep(1000)
+          |    assertEquals(4, 2 + 2)
           |    Thread.sleep(1000)
           |    assertEquals(4, 2 + 2)
           |  }
@@ -351,23 +358,23 @@ object JvmTestSpec extends BaseTestSpec("test-project-test", "cross-test-build-s
     try {
       val compiledState = build.state.compile(testProject)
       assert(compiledState.status == ExitStatus.Ok)
-      val futureTestState =
-        compiledState.testHandle(testProject, List("hello.JUnitTest"), Nil, None)
 
-      val baseMs = if (isWindows) 1000 else 500
-      val waitTimeToCancel = {
-        val randomMs = scala.util.Random.nextInt(2000)
-        (baseMs + randomMs).toLong
-      }
+      val futureTestState = compiledState.testHandle(
+        testProject,
+        List("hello.JUnitTest"),
+        Nil,
+        None,
+        userScheduler = Some(ExecutionContext.ioScheduler)
+      )
 
       ExecutionContext.ioScheduler.scheduleOnce(
-        waitTimeToCancel,
+        3000,
         TimeUnit.MILLISECONDS,
         new Runnable { override def run(): Unit = futureTestState.cancel() }
       )
 
       val testState = {
-        try Await.result(futureTestState, Duration(4500, "ms"))
+        try Await.result(futureTestState, Duration(7000, "ms"))
         catch {
           case scala.util.control.NonFatal(t) => futureTestState.cancel(); throw t
           case i: InterruptedException =>

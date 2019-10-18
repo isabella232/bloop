@@ -123,7 +123,7 @@ object CompileSpec extends bloop.testing.BaseSuite {
       assertValidCompilationState(compiledState, projects)
 
       val buildProject = state1.build.getProjectFor(project.config.name).get
-      val externalClassesDir = state1.client.getUniqueClassesDirFor(buildProject)
+      val externalClassesDir = state1.client.getUniqueClassesDirFor(buildProject, true)
       val classCPath = externalClassesDir.resolve(RelativePath("C.class")).toFile.toPath
       val modifiedTimeOfC = Files.getLastModifiedTime(classCPath)
 
@@ -1431,15 +1431,28 @@ object CompileSpec extends bloop.testing.BaseSuite {
       Await.result(runCompile.runAsync(ExecutionContext.ioScheduler), FiniteDuration(10, "s"))
 
       val actionsOutput = new String(testOut.toByteArray(), StandardCharsets.UTF_8)
-      assertNoDiff(
-        actionsOutput
-          .split(System.lineSeparator())
-          .filterNot(_.startsWith("Compiled"))
-          .mkString(System.lineSeparator()),
-        """|Waiting on external CLI client to release lock on this build...
-           |Compiling a (1 Scala source)
-           |""".stripMargin
-      )
+
+      val expected = actionsOutput
+        .split(System.lineSeparator())
+        .filterNot(_.startsWith("Compiled"))
+        .mkString(System.lineSeparator())
+
+      try {
+        assertNoDiff(
+          expected,
+          """|Waiting on external CLI client to release lock on this build...
+             |Compiling a (1 Scala source)
+             |""".stripMargin
+        )
+      } catch {
+        case NonFatal(t) =>
+          assertNoDiff(
+            expected,
+            """|Compiling a (1 Scala source)
+               |Waiting on external CLI client to release lock on this build...
+               |""".stripMargin
+          )
+      }
     }
   }
 

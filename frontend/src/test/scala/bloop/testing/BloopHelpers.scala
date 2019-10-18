@@ -20,6 +20,7 @@ import monix.execution.CancelableFuture
 import java.nio.file.{Files, Path}
 import java.nio.charset.StandardCharsets
 import bloop.data.WorkspaceSettings
+import monix.execution.Scheduler
 
 trait BloopHelpers {
   self: BaseSuite =>
@@ -208,7 +209,8 @@ trait BloopHelpers {
         project: TestProject,
         only: List[String],
         args: List[String],
-        delay: Option[FiniteDuration]
+        delay: Option[FiniteDuration],
+        userScheduler: Option[Scheduler] = None
     ): CancelableFuture[TestState] = {
       val interpretedTask = {
         val task = testTask(project, only, args)
@@ -218,7 +220,7 @@ trait BloopHelpers {
         }
       }
 
-      interpretedTask.runAsync(ExecutionContext.scheduler)
+      interpretedTask.runAsync(userScheduler.getOrElse(ExecutionContext.scheduler))
     }
 
     def getProjectFor(project: TestProject): Project =
@@ -244,7 +246,7 @@ trait BloopHelpers {
 
     def getClientExternalDir(project: TestProject): AbsolutePath = {
       val buildProject = getProjectFor(project)
-      client.getUniqueClassesDirFor(buildProject)
+      client.getUniqueClassesDirFor(buildProject, forceGeneration = true)
     }
 
     def getLatestSavedStateGlobally(): TestState = {
@@ -263,7 +265,7 @@ trait BloopHelpers {
       new TestState(state.copy(logger = logger))
 
     def withNewCompilerCache: TestState =
-      new TestState(state.copy(compilerCache = state.compilerCache.duplicateWith(state.logger)))
+      new TestState(state.copy(compilerCache = state.compilerCache.withLogger(state.logger)))
 
     def backup: TestState = {
       import java.nio.file.Files

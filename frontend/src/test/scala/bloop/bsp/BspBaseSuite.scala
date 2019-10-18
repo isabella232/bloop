@@ -32,6 +32,8 @@ import scala.concurrent.duration.FiniteDuration
 import scala.meta.jsonrpc.{BaseProtocolMessage, LanguageClient, LanguageServer, Response, Services}
 import scala.collection.mutable
 import bloop.logging.Logger
+import bloop.cli.ExitStatus
+import monix.reactive.subjects.BehaviorSubject
 
 abstract class BspBaseSuite extends BaseSuite with BspClientTest {
   final class UnmanagedBspTestState(
@@ -153,7 +155,8 @@ abstract class BspBaseSuite extends BaseSuite with BspClientTest {
 
     def compileHandle(
         project: TestProject,
-        delay: Option[FiniteDuration] = None
+        delay: Option[FiniteDuration] = None,
+        userScheduler: Option[Scheduler] = None
     ): CancelableFuture[ManagedBspTestState] = {
       val interpretedTask = {
         val task = compileTask(project, None)
@@ -163,7 +166,7 @@ abstract class BspBaseSuite extends BaseSuite with BspClientTest {
         }
       }
 
-      interpretedTask.runAsync(ExecutionContext.scheduler)
+      interpretedTask.runAsync(userScheduler.getOrElse(ExecutionContext.scheduler))
     }
 
     def compile(project: TestProject, originId: Option[String] = None): ManagedBspTestState = {
@@ -262,7 +265,7 @@ abstract class BspBaseSuite extends BaseSuite with BspClientTest {
         result <- f(client)
       } yield result
 
-      TestUtil.await(20, TimeUnit.SECONDS)(session)
+      TestUtil.await(30, TimeUnit.SECONDS)(session)
     }
 
     def scalaOptions(project: TestProject): (ManagedBspTestState, bsp.ScalacOptionsResult) = {
@@ -424,7 +427,8 @@ abstract class BspBaseSuite extends BaseSuite with BspClientTest {
   ): UnmanagedBspTestState = {
     val compileIteration = AtomicInt(0)
     val readyToConnect = Promise[Unit]()
-    val subject = ConcurrentSubject.behavior[State](state)(ExecutionContext.ioScheduler)
+    val subject = BehaviorSubject[State](state)
+    //val subject = ConcurrentSubject.behavior[State](state)(ExecutionContext.ioScheduler)
     val computationScheduler = userComputationScheduler.getOrElse(ExecutionContext.scheduler)
     val ioScheduler = userIOScheduler.getOrElse(bspDefaultScheduler)
     val path = RelativePath(configDirectory.underlying.getFileName)
@@ -535,6 +539,9 @@ abstract class BspBaseSuite extends BaseSuite with BspClientTest {
         throw t
     }
   }
+
+  def assertExitStatus(obtainedState: ManagedBspTestState, expected: ExitStatus): Unit =
+    assertExitStatus(obtainedState.toTestState, expected)
 
   def assertInvalidCompilationState(
       state: ManagedBspTestState,

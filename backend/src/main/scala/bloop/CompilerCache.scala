@@ -1,8 +1,10 @@
 package bloop
 
 import java.io.File
-import java.lang.Iterable
+import java.io.IOException
 import java.io.PrintWriter
+import java.lang.Iterable
+import java.nio.file.Files
 import java.util.concurrent.ConcurrentHashMap
 
 import javax.tools.JavaFileManager.Location
@@ -36,29 +38,30 @@ import sbt.internal.inc.javac.{
   WriteReportingJavaFileObject
 }
 import sbt.internal.util.LoggerWriter
-import java.io.IOException
-import java.nio.file.Files
+
+import scala.concurrent.ExecutionContext
+
+case class CompilerCacheKey(javaInstance: JdkInstance, scalaInstance: ScalaInstance)
 
 final class CompilerCache(
     componentProvider: ComponentProvider,
     retrieveDir: AbsolutePath,
     logger: Logger,
-    userResolvers: List[Resolver]
+    userResolvers: List[Resolver],
+    useSiteCache: Option[ConcurrentHashMap[CompilerCacheKey, Compilers]],
+    scheduler: ExecutionContext
 ) {
 
-  private case class CacheKey(javaInstance: JdkInstance, scalaInstance: ScalaInstance)
-
-  private val cache = new ConcurrentHashMap[CacheKey, Compilers]()
-
+  private val cache = useSiteCache.getOrElse(new ConcurrentHashMap[CompilerCacheKey, Compilers]())
   def get(javaInstance: JdkInstance, scalaInstance: ScalaInstance): Compilers = {
-    val key = CacheKey(javaInstance, scalaInstance)
+    val key = CompilerCacheKey(javaInstance, scalaInstance)
     cache.computeIfAbsent(key, newCompilers)
   }
 
-  private[bloop] def duplicateWith(logger: Logger): CompilerCache =
-    new CompilerCache(componentProvider, retrieveDir, logger, userResolvers)
+  private[bloop] def withLogger(logger: Logger): CompilerCache =
+    new CompilerCache(componentProvider, retrieveDir, logger, userResolvers, Some(cache), scheduler)
 
-  private def newCompilers(key: CacheKey): Compilers = {
+  private def newCompilers(key: CompilerCacheKey): Compilers = {
     val scalaCompiler = getScalaCompiler(key.scalaInstance, componentProvider)
     val javaCompiler =
       if (isSystemJava(key.javaInstance.jdkHome))
@@ -95,7 +98,8 @@ final class CompilerCache(
           Some(Paths.getCacheDirectory("bridge-cache").toFile),
           bridgeSources,
           retrieveDir.toFile,
-          logger
+          logger,
+          scheduler
         )
     }
   }
