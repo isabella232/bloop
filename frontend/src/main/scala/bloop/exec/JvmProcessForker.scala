@@ -51,9 +51,9 @@ trait JvmProcessForker {
       opts: CommonOptions,
       extraClasspath: Array[AbsolutePath] = Array.empty
   ): Task[Int] = {
-    val (userJvmOptions, userArgs) =
+    val (rawUserJvmOptions, userArgs) =
       if (skipJargs) (Array.empty[String], args0) else args0.partition(_.startsWith("-J"))
-
+    val userJvmOptions = rawUserJvmOptions.map(_.substring(2))
     runMain(cwd, mainClass, userArgs, userJvmOptions, logger, opts, extraClasspath)
   }
 

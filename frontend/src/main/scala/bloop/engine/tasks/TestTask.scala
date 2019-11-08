@@ -29,7 +29,7 @@ object TestTask {
    * @param state The state with which to test.
    * @param project The project to test.
    * @param cwd The current working directory.
-   * @param userTestOptions0 The test options that are passed by the user via CLI. If they
+   * @param rawTestOptions The test options that are passed by the user via CLI. If they
    *                         contain arguments starting with `-J`, they will be interpreted
    *                         as jvm options.
    * @param testFilter The test filter for test suites.
