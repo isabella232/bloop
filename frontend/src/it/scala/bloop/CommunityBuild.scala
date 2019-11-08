@@ -129,7 +129,7 @@ abstract class CommunityBuild(val buildpressHomeDir: AbsolutePath) {
         dependencies = allProjectsInBuild.map(_.project.name),
         scalaInstance = allProjectsInBuild.head.project.scalaInstance,
         rawClasspath = Nil,
-        annotationProcessorPath = Nil,
+        annotationProcessorPath = None,
         resources = Nil,
         compileSetup = Config.CompileSetup.empty,
         genericClassesDir = dummyClassesDir,

@@ -152,7 +152,7 @@ object CompileTask {
               state.compilerCache,
               sources.toArray,
               classpath,
-              project.annotationProcessorPath.toArray,
+              project.annotationProcessorPath.map(_.toArray),
               bundle.uniqueInputs,
               compileOut,
               project.out,

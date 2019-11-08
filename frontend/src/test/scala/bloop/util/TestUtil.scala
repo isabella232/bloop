@@ -367,7 +367,7 @@ object TestUtil {
       dependencies = dependencies.toList,
       scalaInstance = scalaInstance,
       rawClasspath = classpath,
-      annotationProcessorPath = Nil,
+      annotationProcessorPath = None,
       resources = Nil,
       compileSetup = Config.CompileSetup.empty.copy(order = compileOrder),
       genericClassesDir = AbsolutePath(target),
