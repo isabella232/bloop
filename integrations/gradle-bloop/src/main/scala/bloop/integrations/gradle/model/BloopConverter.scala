@@ -576,11 +576,16 @@ final class BloopConverter(parameters: BloopParameters) {
       project: Project
   ): Config.Module = {
 
+    val includeJavadoc = getBooleanProperty(project, "bloopIncludeJavadoc").getOrElse(parameters.includeJavadoc)
+    val includeSources = getBooleanProperty(project,"bloopIncludeSources").getOrElse(parameters.includeSources)
+    val javadocArtifact = if (includeJavadoc) Seq(classOf[JavadocArtifact]) else Seq.empty
+    val sourcesArtifact = if (includeSources) Seq(classOf[SourcesArtifact]) else Seq.empty
+
     val resolutionResult = project
       .getDependencies()
       .createArtifactResolutionQuery()
       .forComponents(artifact.getId.getComponentIdentifier)
-      .withArtifacts(classOf[JvmLibrary], classOf[SourcesArtifact], classOf[JavadocArtifact])
+      .withArtifacts(classOf[JvmLibrary], javadocArtifact ++ sourcesArtifact: _*)
       .execute()
 
     val name = artifact.getModuleVersion().getId().getName()
@@ -794,6 +799,13 @@ final class BloopConverter(parameters: BloopParameters) {
   private def capitalize(str: String): String =
     if (str.isEmpty) str else str.charAt(0).toUpper + str.substring(1)
 
+  private def getBooleanProperty(project: Project, name: String): Option[Boolean] = {
+    try Option(project.getProperties.get(name)).map(_.toString.toBoolean)
+    catch {
+      case e: IllegalArgumentException =>
+        throw new GradleException(s"Failed to convert property $name to Boolean", e)
+    }
+  }
 }
 
 object BloopConverter {
