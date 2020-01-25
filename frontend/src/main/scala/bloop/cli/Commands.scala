@@ -146,6 +146,7 @@ object Commands {
       parallel: Boolean = false
   ) extends CompilingCommand
 
+  @CommandName("bench")
   case class Benchmark(
       @ExtraName("p")
       @ExtraName("project")
